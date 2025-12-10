@@ -1,0 +1,18 @@
+========================================
+  RELATÓRIO DE PERFORMANCE DO MODELO  
+========================================
+Modelo: final_model_15
+Total de Amostras: 150
+----------------------------------------
+Limiar Otimizado (Max F1-Score): 1.7391
+AUC-ROC:              0.9010
+----------------------------------------
+Acurácia (Accuracy):  0.8333
+Precisão (Precision): 0.8641
+Recall (Sensibilidade):0.8900
+F1-Score:             0.8768
+----------------------------------------
+Matriz de Confusão:
+TN: 36 | FP: 14
+FN: 11 | TP: 89
+========================================

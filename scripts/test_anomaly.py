@@ -31,7 +31,7 @@ except ImportError as e:
     sys.exit(1) # Força a saída se não conseguir importar
 
 # --- CONFIGURAÇÕES E VARIÁVEIS GLOBAIS ---
-MODEL_NAME = 'pix2pix_final_v3'
+MODEL_NAME = 'final_model_15'
 CHECKPOINTS_DIR = '../checkpoints'
 DATASET_ROOT = '../datasets/leaf_disease_detection/test'
 IMAGE_SIZE = 256

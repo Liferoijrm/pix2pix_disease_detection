@@ -13,13 +13,13 @@ from models import create_model
 from options.test_options import TestOptions
 
 # --- CONFIGURAÇÕES ---
-MODEL_NAME = 'pix2pix_final'
+MODEL_NAME = 'final_model_15'
 CHECKPOINTS_DIR = '../checkpoints'
 IMAGE_SIZE = 256
 
 # ** MODIFIQUE ESTES CAMINHOS **
 # 1. Caminho para a imagem de entrada que você quer reconstruir
-INPUT_IMAGE_PATH = '../datasets/leaf_disease_detection/test/saudaveis/leaf a4-a6 ad_0.jpg' 
+INPUT_IMAGE_PATH = '../datasets/leaf_disease_detection/test/saudaveis/leaf a13-a15 ab_1.jpg' 
 # 2. Caminho e nome do arquivo de saída (será usado para nomear a subpasta)
 OUTPUT_FILENAME_BASE = os.path.basename(INPUT_IMAGE_PATH).split('.')[0] # Ex: a976-979 ab_2
 
@@ -34,7 +34,7 @@ def setup_options():
     opt.name = MODEL_NAME
     opt.checkpoints_dir = CHECKPOINTS_DIR
 
-    opt.epoch = '20'
+    opt.epoch = '15'
     
     # Parâmetros de Arquitetura
     opt.model = 'colorization'

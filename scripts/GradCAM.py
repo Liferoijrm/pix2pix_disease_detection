@@ -22,10 +22,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Ajuste aqui: checkpoint do D (época 100)
-WEIGHT_PATH_D = '../checkpoints/pix2pix_final_v3/15_net_D.pth'
+WEIGHT_PATH_D = '../checkpoints/final_model_15/15_net_D.pth'
 
 # Imagem A (entrada L) e B (GT color) correspondentes.
-IMAGE_A_PATH = '../datasets/leaf_disease_detection/test/doentes/a5011 - a513 ad_0.jpg'  # L ou A
+IMAGE_A_PATH = '../datasets/leaf_disease_detection/test/saudaveis/leaf a13-a15 ab_1.jpg '  # L ou A
 IMAGE_B_PATH = None  # se tiver GT color correspondente coloque o caminho; se None faremos fallback
 
 IMG_SIZE = 256
