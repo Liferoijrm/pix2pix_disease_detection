@@ -30,6 +30,7 @@
                  num_test: 50                            
               num_threads: 4                             
                 output_nc: 3                             
+                     path: ../datasets/leaf_disease_detection/test/saudaveis/leaf a1-a3 ab_0.jpg	[default: default_value_aqui]
                     phase: test                          
                preprocess: resize_and_crop               
               results_dir: ./results/                    

@@ -140,9 +140,8 @@ def run_full_evaluation():
     print(f"Total de imagens: {len(file_paths)}")
     if len(file_paths) == 0: return
 
-    # =================================================================
-    # PASSO 1: CALCULAR SCORES E MÉTRICAS GLOBAIS
-    # =================================================================
+    
+    # CALCULAR SCORES E MÉTRICAS GLOBAIS
     print("\n--- PASSO 1: Calculando Estatísticas e Métricas ---")
     
     all_scores = []
@@ -198,16 +197,10 @@ def run_full_evaluation():
         optimal_idx = np.argmax(f1_scores)
         optimal_threshold = thresholds[optimal_idx]
         
-        # Se você quisesse manter o limiar de Youden, usaria:
-        # j_scores = tpr - fpr
-        # optimal_idx = np.argmax(j_scores)
-        # optimal_threshold = thresholds[optimal_idx]
-        # ----------------------------------------------
-        
-        # Recalcular métricas com o NOVO limiar (F1-máximo)
+        # Recalcular métricas com o limiar F1-máximo
         predictions_np = (scores_np > optimal_threshold).astype(int)
         
-        auc = roc_auc_score(labels_np, scores_np) # AUC não muda
+        auc = roc_auc_score(labels_np, scores_np) 
         acc = accuracy_score(labels_np, predictions_np)
         prec = precision_score(labels_np, predictions_np, zero_division=0)
         rec = recall_score(labels_np, predictions_np, zero_division=0)
@@ -243,9 +236,8 @@ def run_full_evaluation():
     with open(os.path.join(RESULTS_DIR, 'metrics_summary.txt'), 'w', encoding='utf-8') as f:
         f.write(metrics_txt)
 
-    # =================================================================
-    # PASSO 2: GERAR PDFS INDIVIDUAIS E PDF GLOBAL
-    # =================================================================
+    
+    # GERAR PDFS INDIVIDUAIS E PDF GLOBAL
     print("--- PASSO 2: Gerando Relatórios Visuais ---")
     
     global_pdf_path = os.path.join(RESULTS_DIR, GLOBAL_REPORT_NAME)

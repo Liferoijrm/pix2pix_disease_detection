@@ -32,48 +32,13 @@ ICCV, 2017.
 - Calcular anomalia usando **CIEDE2000** por pixel.
 - Gerar mapas de calor das regiões sintomáticas.
 - Avaliar o modelo seguindo as métricas do artigo:
+  - ✔️ AUC-ROC   
+  - ✔️ Acurácia
   - ✔️ Precisão  
   - ✔️ Recall  
   - ✔️ F1-score  
-  - ✔️ ROC e AUC  
 - Aplicar **Grad-CAM** ao modelo para identificar regiões relevantes.
-- (**Opcional – até +2.0 pontos**) Criar uma interface interativa para testar novas imagens.
 
----
-
-## 📂 Estrutura do Repositório
-
-```
-├── data/
-│ ├── train/ # 50 folhas saudáveis (treino)
-│ ├── test/
-│ │ ├── healthy/ # 50 saudáveis (teste)
-│ │ └── diseased/ # 100 doentes
-│ └── examples/ # exemplos para README
-│
-├── src/
-│ ├── preprocessing.py
-│ ├── pix2pix_model.py
-│ ├── train_pix2pix.py
-│ ├── reconstruct.py
-│ ├── ciede2000.py
-│ ├── anomaly_score.py
-│ ├── evaluate.py
-│ ├── gradcam.py
-│ └── interface/ # (opcional) app gráfico / web
-│
-├── results/
-│ ├── reconstructions/
-│ ├── heatmaps/
-│ ├── gradcam/
-│ └── metrics.txt
-│
-├── report/
-│ └── relatório.pdf
-│
-├── README.md
-└── requirements.txt
-```
 ---
 
 ## 🧠 Metodologia Utilizada
@@ -140,36 +105,64 @@ Certifique-se de que seu dataset esteja organizado no formato **pix2pix** no dir
 
 Os principais *scripts* de inferência e visualização estão localizados na pasta `scripts/`. O caminho para a raiz dos dados (`--dataroot`) deve ser especificado:
 
-#### A. Gerar Reconstrução de Imagem Única
+#### A. Testar o Modelo em Todo o Conjunto de Imagens
 
-Gera a reconstrução de uma imagem específica e salva em `scripts/pix2pix_reconstructions`, útil para inspeção visual.
-
-```bash
-python scripts/reconstruct_single_image.py --dataroot ./datasets/leaf_disease_detection
-```
-
-#### B. Calcular Índice de Anomalia e Resultados
-Executa a inferência e calcula o índice de anomalia (anomalia score) para todas as imagens no conjunto de testes.
+Executa a inferência completa, reconstruindo todas as imagens do conjunto de teste, calculando o CIEDE2000 e salvando os resultados em results/.
 
 ```bash
-python scripts/test_anomaly.py --dataroot ./datasets/leaf_disease_detection
+python scripts/test_model.py --dataroot ./datasets/leaf_disease_detection
 ```
 
-#### C. Gerar Grad-CAM
-Gera os mapas de calor Grad-CAM para visualizar a atenção do discriminador do modelo nas anomalias.
+#### B. Testar o Modelo em Uma Única Imagem
+
+Permite verificar a reconstrução e o mapa CIEDE2000 de uma imagem específica — útil para análise qualitativa.
 
 ```bash
-python scripts/GradCAM.py --dataroot ./datasets/leaf_disease_detection
+python scripts/test_single_image.py
+--dataroot ./datasets/leaf_disease_detection
+--path "../datasets/leaf_disease_detection/test/doentes/a988-992_ab_0.jpg"
 ```
+
+#### C. Gerar Visualizações Grad-CAM
+
+Gera visualizações Grad-CAM das camadas convolucionais do discriminador, permitindo interpretar quais regiões influenciam sua decisão.
+
+```bash
+python scripts/show_GradCAM.py --dataroot ./datasets/leaf_disease_detection
+```
+
+#### D. Treinar o Modelo Pix2Pix
+
+Executa o processo completo de treinamento, salvando os checkpoints em checkpoints/.
+
+```bash
+python train.py
+--dataroot D:/pytorch-CycleGAN-and-pix2pix/datasets/leaf_disease_detection
+--name pix2pix_final_v3
+--model colorization
+--dataset_mode colorization
+--direction AtoB
+--lr 0.00015
+--lambda_L1 5.0
+--beta1 0.5
+--n_epochs 100
+--n_epochs_decay 50
+--netG unet_256
+--netD basic
+--num_threads 0
+```
+
+---
 
 # 🎨 Exemplos de Visualização
 
 ### 🔹 Reconstrução via pix2pix
 
-| Original (Preto e Branco) | Original (RGB) | Reconstruída (RGB) |
-| :---: | :---: | :---: |
-| ![Imagem em tons de cinza](scripts/pix2pix_reconstructions/pix2pix_reconstruction_leaf_a13-a15_ab_1/input_grayscale_256.png) | ![Imagem RGB original](scripts/pix2pix_reconstructions/pix2pix_reconstruction_leaf_a13-a15_ab_1/original_rgb_256.png) | ![Imagem RGB reconstruída](scripts/pix2pix_reconstructions/pix2pix_reconstruction_leaf_a13-a15_ab_1/reconstructed_rgb_256.png) |
-| **Localização:** `scripts/.../input_grayscale_256.png` | **Localização:** `scripts/.../original_rgb_256.png` | **Localização:** `scripts/.../reconstructed_rgb_256.png` |
+| Original (Preto e Branco) | Original (RGB) | Reconstruída (RGB) | Mapa CIEDE2000 |
+| :---: | :---: | :---: | :---: |
+| ![Imagem em tons de cinza](results/test_single_leaf/reconstruction_a988-992_ab_0/input_grayscale_256.png) | ![Imagem RGB original](results/test_single_leaf/reconstruction_a988-992_ab_0/original_rgb_256.png) | ![Imagem RGB reconstruída](results/test_single_leaf/reconstruction_a988-992_ab_0/reconstructed_rgb_256.png) | ![Mapa CIEDE2000](results/test_single_leaf/reconstruction_a988-992_ab_0/ciede_heatmap_256.png) |
+| **Localização:** `../results/.../input_grayscale_256.png` | **Localização:** `../results/.../original_rgb_256.png` | **Localização:** `../results/.../reconstructed_rgb_256.png` | **Localização:** `../results/.../ciede_heatmap_256.png` |
+
 
 
 ---
@@ -178,8 +171,10 @@ python scripts/GradCAM.py --dataroot ./datasets/leaf_disease_detection
 
 | Mapa de Calor Grad-CAM |
 | :---: |
-| ![Mapa de Calor Grad-CAM](scripts/gradcam_all_layers_D_15.png) |
-| **Localização:** `scripts/gradcam_all_layers_D_15.png` |
+| ![Mapa de Calor Grad-CAM](results/Grad-CAM_layers/SAUDAVEIS/imagens/gradcam_leaf%20a1-a3%20ab_0_jpg.png) |
+| **Localização:** `results/Grad-CAM_layers/...` |
+
+---
 
 
 # 👥 Autores
@@ -189,6 +184,8 @@ python scripts/GradCAM.py --dataroot ./datasets/leaf_disease_detection
 ### 🔹 Leonardo Krauss 
 
 ### Projeto desenvolvido para a disciplina Introdução à Inteligência Artificial (CIC/UnB) — 2025/2.
+
+---
 
 # 📚 Referências
 
