@@ -39,6 +39,7 @@ CHECKPOINTS_DIR = '../checkpoints'
 DATASET_ROOT = '../datasets/leaf_disease_detection/test'
 RESULTS_DIR = '../results/model_tests'
 GLOBAL_REPORT_NAME = 'RELATORIO_GERAL_METRICAS_IMAGENS.pdf'
+ROC_CURVE_NAME = 'CURVA_AUC_ROC.png' # Nome do novo arquivo de imagem
 IMAGE_SIZE = 256
 DEVICE = None 
 
@@ -89,7 +90,7 @@ def process_anomaly(original_rgb_np, reconstructed_rgb_np):
     return score_mean, delta_e_map
 
 def plot_sample_row(ax_row, img_gray, img_orig, img_recon, diff_map, 
-                   filename, score, pred_label, true_label, threshold, is_pdf_page=False):
+                    filename, score, pred_label, true_label, threshold, is_pdf_page=False):
     
     status_pred = "DOENTE" if pred_label == 1 else "SAUDÁVEL"
     status_real = "DOENTE" if true_label == 1 else "SAUDÁVEL"
@@ -117,6 +118,51 @@ def plot_sample_row(ax_row, img_gray, img_orig, img_recon, diff_map,
     
     return info_text, im
 
+def plot_roc_curve(fpr, tpr, auc, optimal_threshold, optimal_f1, results_dir):
+    """Gera e salva o gráfico da Curva AUC-ROC."""
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    # 1. Plotar a Curva ROC
+    ax.plot(fpr, tpr, color='darkorange', lw=2, 
+            label=f'Curva ROC (área = {auc:.4f})')
+    
+    # 2. Plotar a linha de chance aleatória
+    ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    
+    # 3. Marcar o ponto do limiar ótimo (max F1)
+    # Encontrar o ponto (FPR, TPR) que corresponde ao limiar ótimo
+    f1_scores = []
+    # Simula o cálculo para encontrar o ponto no gráfico (FPR, TPR)
+    for t in thresholds:
+        predictions = (scores_np > t).astype(int)
+        prec = precision_score(labels_np, predictions, zero_division=0)
+        rec = recall_score(labels_np, predictions, zero_division=0)
+        if (prec + rec) == 0:
+            f1_scores.append(0)
+        else:
+            f1_scores.append(2 * (prec * rec) / (prec + rec))
+    
+    optimal_idx = np.argmax(f1_scores)
+    optimal_fpr = fpr[optimal_idx]
+    optimal_tpr = tpr[optimal_idx]
+    
+    ax.plot(optimal_fpr, optimal_tpr, 'o', color='red', markersize=10, 
+            label=f'Limiar Ótimo (F1={optimal_f1:.4f})\nScore={optimal_threshold:.4f}')
+
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel('Taxa de Falso Positivo (1 - Especificidade)')
+    ax.set_ylabel('Taxa de Verdadeiro Positivo (Sensibilidade)')
+    ax.set_title('Curva Característica de Operação do Receptor (ROC)')
+    ax.legend(loc="lower right")
+    ax.grid(True)
+    
+    plot_path = os.path.join(results_dir, ROC_CURVE_NAME)
+    fig.savefig(plot_path)
+    plt.close(fig)
+    print(f"Gráfico ROC salvo em: {os.path.abspath(plot_path)}")
+
+
 # --- LOOP PRINCIPAL ---
 
 def run_full_evaluation():
@@ -140,10 +186,12 @@ def run_full_evaluation():
     print(f"Total de imagens: {len(file_paths)}")
     if len(file_paths) == 0: return
 
-    
-    # CALCULAR SCORES E MÉTRICAS GLOBAIS
+    # =================================================================
+    # PASSO 1: CALCULAR SCORES E MÉTRICAS GLOBAIS
+    # =================================================================
     print("\n--- PASSO 1: Calculando Estatísticas e Métricas ---")
     
+    global all_scores, all_labels, scores_np, labels_np, thresholds
     all_scores = []
     all_labels = []
     path_to_score = {}
@@ -175,20 +223,19 @@ def run_full_evaluation():
     
     metrics_report = ""
     optimal_threshold = 0.0
+    f1 = 0.0
     
     if len(np.unique(labels_np)) >= 2:
         fpr, tpr, thresholds = roc_curve(labels_np, scores_np)
         
-        # --- NOVO CRITÉRIO: Otimizar para F1-Score ---
+        # --- Otimizar para F1-Score ---
         f1_scores = []
         
         for t in thresholds:
             predictions = (scores_np > t).astype(int)
-            # Precisão e Recall são necessários para o F1
             prec = precision_score(labels_np, predictions, zero_division=0)
             rec = recall_score(labels_np, predictions, zero_division=0)
             
-            # F1-Score = 2 * (Precisão * Recall) / (Precisão + Recall)
             if (prec + rec) == 0:
                 f1_scores.append(0)
             else:
@@ -214,7 +261,7 @@ def run_full_evaluation():
             f"Modelo: {MODEL_NAME}\n"
             f"Total de Amostras: {len(labels_np)}\n"
             f"----------------------------------------\n"
-            f"Limiar Otimizado (Max F1-Score): {optimal_threshold:.4f}\n" # Alteração
+            f"Limiar Otimizado (Max F1-Score): {optimal_threshold:.4f}\n" 
             f"AUC-ROC:              {auc:.4f}\n"
             f"----------------------------------------\n"
             f"Acurácia (Accuracy):  {acc:.4f}\n"
@@ -227,6 +274,10 @@ def run_full_evaluation():
             f"FN: {fn} | TP: {tp}\n"
             f"========================================\n"
         )
+        
+        # CHAMADA DA NOVA FUNÇÃO PARA GERAR O GRÁFICO ROC
+        plot_roc_curve(fpr, tpr, auc, optimal_threshold, f1, RESULTS_DIR)
+        
     else:
         optimal_threshold = np.mean(scores_np)
         metrics_txt = "Aviso: Apenas uma classe disponível. Métricas não calculadas.\n"
@@ -236,8 +287,9 @@ def run_full_evaluation():
     with open(os.path.join(RESULTS_DIR, 'metrics_summary.txt'), 'w', encoding='utf-8') as f:
         f.write(metrics_txt)
 
-    
-    # GERAR PDFS INDIVIDUAIS E PDF GLOBAL
+    # =================================================================
+    # PASSO 2: GERAR PDFS INDIVIDUAIS E PDF GLOBAL
+    # =================================================================
     print("--- PASSO 2: Gerando Relatórios Visuais ---")
     
     global_pdf_path = os.path.join(RESULTS_DIR, GLOBAL_REPORT_NAME)
@@ -254,12 +306,27 @@ def run_full_evaluation():
         global_pdf.savefig(fig_cover)
         plt.close(fig_cover)
         
+        # --- PÁGINA 2: CURVA ROC ---
+        # Abre o arquivo PNG e insere como imagem na segunda página do PDF
+        try:
+            roc_img = plt.imread(os.path.join(RESULTS_DIR, ROC_CURVE_NAME))
+            fig_roc = plt.figure(figsize=(8.5, 11))
+            ax_roc = fig_roc.add_subplot(111)
+            ax_roc.imshow(roc_img)
+            ax_roc.axis('off')
+            ax_roc.set_title("Curva AUC-ROC", fontsize=16)
+            global_pdf.savefig(fig_roc)
+            plt.close(fig_roc)
+        except FileNotFoundError:
+            print("Aviso: Imagem da Curva ROC não encontrada para inclusão no PDF.")
+
+        
         for i, (img_path, label) in enumerate(file_paths):
             filename = os.path.basename(img_path)
             score = path_to_score.get(img_path, 0)
             prediction = 1 if score > optimal_threshold else 0
             
-            # Carregamento e inferência
+            # Carregamento e inferência (simplificado, pois o score já foi calculado)
             img_bgr = cv2.imread(img_path)
             img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
             img_rgb_256 = cv2.resize(img_rgb, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_AREA)
@@ -285,11 +352,10 @@ def run_full_evaluation():
             os.makedirs(save_folder, exist_ok=True)
             
             fig_ind, axes_ind = plt.subplots(1, 4, figsize=(16, 5))
-            # Ajuste individual
             plt.subplots_adjust(top=0.75, wspace=0.3) 
             
             info_txt, im_ind = plot_sample_row(axes_ind, img_gray, img_rgb_256, reconstructed_rgb.astype(np.uint8), diff_map,
-                                       filename, score, prediction, label, optimal_threshold)
+                                                filename, score, prediction, label, optimal_threshold)
             
             fig_ind.suptitle(info_txt, fontsize=14, y=0.92, fontweight='bold')
             fig_ind.colorbar(im_ind, ax=axes_ind[3], fraction=0.046, pad=0.04)
@@ -315,19 +381,16 @@ def run_full_evaluation():
             if len(batch_data) == SAMPLES_PER_PAGE:
                 fig_batch, axes_batch = plt.subplots(SAMPLES_PER_PAGE, 4, figsize=(15, SAMPLES_PER_PAGE * 4))
                 
-                # --- AJUSTE DE LAYOUT GLOBAL (CORREÇÃO AQUI) ---
-                # 'top' alterado de 0.92 para 0.85 para dar mais espaço (headroom) para a legenda da 1ª linha
                 plt.subplots_adjust(top=0.85, bottom=0.05, hspace=0.8, wspace=0.3)
                 
                 for row_idx, data in enumerate(batch_data):
                     info, _ = plot_sample_row(axes_batch[row_idx], data['gray'], data['orig'], data['recon'], data['diff'],
-                                           data['file'], data['score'], data['pred'], data['label'], optimal_threshold, is_pdf_page=True)
+                                             data['file'], data['score'], data['pred'], data['label'], optimal_threshold, is_pdf_page=True)
                     
-                    # Legenda centralizada acima da linha
                     axes_batch[row_idx, 0].text(2.2, 1.35, info, 
-                                                transform=axes_batch[row_idx, 0].transAxes, 
-                                                ha='center', va='bottom', 
-                                                fontsize=10, fontweight='bold')
+                                                 transform=axes_batch[row_idx, 0].transAxes, 
+                                                 ha='center', va='bottom', 
+                                                 fontsize=10, fontweight='bold')
 
                 # Títulos das colunas 
                 axes_batch[0, 0].set_title("Entrada (L)")
@@ -347,17 +410,16 @@ def run_full_evaluation():
             fig_batch, axes_batch = plt.subplots(len(batch_data), 4, figsize=(15, len(batch_data) * 4))
             if len(batch_data) == 1: axes_batch = np.expand_dims(axes_batch, axis=0)
             
-            # Mesmo ajuste de top=0.85 aqui também
             plt.subplots_adjust(top=0.85, bottom=0.05, hspace=0.8, wspace=0.3)
             
             for row_idx, data in enumerate(batch_data):
                 info, _ = plot_sample_row(axes_batch[row_idx], data['gray'], data['orig'], data['recon'], data['diff'],
-                                       data['file'], data['score'], data['pred'], data['label'], optimal_threshold, is_pdf_page=True)
+                                         data['file'], data['score'], data['pred'], data['label'], optimal_threshold, is_pdf_page=True)
                 
                 axes_batch[row_idx, 0].text(2.2, 1.35, info, 
-                                            transform=axes_batch[row_idx, 0].transAxes, 
-                                            ha='center', va='bottom', 
-                                            fontsize=10, fontweight='bold')
+                                             transform=axes_batch[row_idx, 0].transAxes, 
+                                             ha='center', va='bottom', 
+                                             fontsize=10, fontweight='bold')
             
             axes_batch[0, 0].set_title("Entrada (L)")
             axes_batch[0, 1].set_title("Original")
